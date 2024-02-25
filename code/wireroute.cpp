@@ -236,24 +236,19 @@ int main(int argc, char *argv[]) {
 }
 
 validate_wire_t Wire::to_validate_format(void) const {
-    validate_wire_t wire;
-    int num_bend = num_bends(*this);
-    if (num_bend == 0) {
-        wire.p[0].x = start_x;
-        wire.p[0].y = start_y;
+    validate_wire_t wire{};
+    wire.p[0].x = start_x;
+    wire.p[0].y = start_y;
+
+    if (int num_bend = num_bends(*this); 0 == num_bend) {
         wire.p[1].x = end_x;
         wire.p[1].y = end_y;
     } else if (num_bend == 1) {
-        wire.p[0].x = start_x;
-        wire.p[0].y = start_y;
         wire.p[1].x = bend1_x;
         wire.p[1].y = bend1_y;
         wire.p[2].x = end_x;
         wire.p[2].y = end_y;
-
     } else {
-        wire.p[0].x = start_x;
-        wire.p[0].y = start_y;
         wire.p[1].x = bend1_x;
         wire.p[1].y = bend1_y;
         wire.p[3].x = end_x;
