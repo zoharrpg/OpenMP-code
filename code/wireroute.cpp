@@ -420,27 +420,26 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
             cost_t delta_cost = -update_wire<true, true>(wire, occupancy, -1);
             int delta_x = std::abs(wire.start_x - wire.end_x);
             int delta_y = std::abs(wire.start_y - wire.end_y);
+            Wire private_wire = wire;
 
-#pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y, occupancy)
+#pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y, occupancy) firstprivate(private_wire)
             for (int i = 1; i <= delta_x + delta_y; i++) {
                 cost_t _delta_cost;
-                int x;
-                int y;
                 if (i <= delta_x) {
-                    x = std::min(wire.start_x, wire.end_x) + i;
-                    y = wire.start_y;
-                    _delta_cost = update_point<true, false>(x, y, occupancy, 1);
+                    private_wire.bend1_x = std::min(wire.start_x, wire.end_x) + i;
+                    private_wire.bend1_y = wire.start_y;
+                    _delta_cost = update_wire<true, false>(private_wire, occupancy, 1);
                 } else {
-                    x = wire.end_x;
-                    y = std::min(wire.start_y, wire.end_y) + i - delta_x;
-                    _delta_cost = update_point<true, false>(x, y, occupancy, 1);
+                    private_wire.bend1_x = wire.end_x;
+                    private_wire.bend1_y = std::min(wire.start_y, wire.end_y) + i - delta_x;
+                    _delta_cost = update_wire<true, false>(private_wire, occupancy, 1);
                 }
 #pragma critical
                 {
                     if (_delta_cost < delta_cost) {
                         delta_cost = _delta_cost;
-                        wire.bend1_x = x;
-                        wire.bend1_y = y;
+                        wire.bend1_x = private_wire.bend1_x;
+                        wire.bend1_y = private_wire.bend1_y;
                     }
                 }
             }
