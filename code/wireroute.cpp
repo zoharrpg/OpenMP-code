@@ -430,7 +430,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                     private_wire.bend1_y = wire.start_y;
                     _delta_cost = update_wire<true, false>(private_wire, occupancy, 1);
                 } else {
-                    private_wire.bend1_x = wire.end_x;
+                    private_wire.bend1_x = wire.start_x;
                     private_wire.bend1_y = std::min(wire.start_y, wire.end_y) + i - delta_x;
                     _delta_cost = update_wire<true, false>(private_wire, occupancy, 1);
                 }
