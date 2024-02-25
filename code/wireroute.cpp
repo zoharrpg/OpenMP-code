@@ -4,7 +4,7 @@
  */
 
 #include "wireroute.h"
-
+#include <random>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -12,9 +12,9 @@
 #include <chrono>
 #include <string>
 #include <vector>
-
 #include <unistd.h>
 #include <omp.h>
+#include <limits>
 
 void print_stats(const std::vector<std::vector<int>>& occupancy) {
   int max_occupancy = 0;
@@ -88,6 +88,229 @@ void write_output(const std::vector<Wire>& wires, const int num_wires, const std
 
   out_wires.close();
 }
+void init_wires(std::vector<Wire>& wires,std::vector<std::vector<int>>& occupancy){
+	for (auto& wire:wires){
+
+		int deltaX = std::abs(wire.start_x - wire.end_x);
+        int deltaY = std::abs(wire.start_y - wire.end_y);
+
+        int x_iterator = (wire.end_x - wire.start_x) > 0 ? 1 : -1;
+        int y_iterator = (wire.end_y - wire.start_y) > 0 ? 1 : -1;
+
+		int x = wire.start_x;
+        int y = wire.start_y;
+		for(int i = 0;i< deltaX;i++){
+		    occupancy[x][y]++;
+            x +=x_iterator;
+		
+        }
+		if (deltaX!=0 && deltaY!=0){
+		    wire.bend1_x = x;
+		    wire.bend1_y = y;
+		}
+		for(int i = 0;i<= deltaY;i++){
+		    occupancy[x][y]++;
+            y+=y_iterator;
+		}
+		
+	}
+
+}
+int select_path(std::vector<int>& costs,double SA_prob){
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0,1.0);
+    if (dis(gen) > SA_prob){
+        auto minIt = std::min_element(costs.begin(),costs.end());
+        int mini_index = std::distance(costs.begin(),minIt);
+        return mini_index;
+
+    }else{
+        std::uniform_int_distribution<> distr(0,costs.size()-1);
+        return distr(gen);
+    }
+    
+
+}
+void update_occupmancy(int index,std::vector<std::vector<int>>& occupancy,Wire wire){
+    int deltaX = std::abs(wire.start_x-wire.end_x);
+    
+    int deltaY = std::abs(wire.end_y - wire.start_y);
+    int x_iterator = (wire.end_x - wire.start_x) > 0 ? 1 : -1;
+    int y_iterator = (wire.end_y - wire.start_y) > 0 ? 1 : -1;
+    
+    int start_x = wire.start_x;
+    int start_y = wire.start_y;
+    if (deltaX ==0){
+        for(int i = 0;i<deltaY;i++){
+            occupancy[start_x][start_y]++;
+            start_y+=y_iterator;
+        }
+        wire.bend1_x = wire.start_x;
+        wire.bend1_y =wire.start_y;
+        return;
+        
+    }
+    if (deltaY == 0){
+        for(int i = 0;i<deltaX;i++){
+            occupancy[start_x][start_y]++;
+            start_x+=x_iterator;
+        }
+        wire.bend1_x = wire.start_x;
+        wire.bend1_y =wire.start_y;
+        return;
+    }
+
+
+    if (index < deltaX){
+        int currentIndex = index;
+
+        //  Update occupancy for the horizontal part
+        for (int j=0;j<currentIndex;j++){
+            occupancy[start_x][start_y]++;
+            start_x+=x_iterator;
+        }
+        wire.bend1_x = start_x;
+        wire.bend1_y = start_y;
+        // Update occupancy for the vertical part
+        for (int j=0;j<deltaY;j++){
+            occupancy[start_x][start_y]++;
+            start_y+=y_iterator;
+
+        }
+        // equal sign
+        for (int j=0;j<=(deltaX-currentIndex);j++){
+                occupancy[start_x][start_y]++;
+                start_x+=x_iterator;
+        }
+
+    }else{
+        int currentIndex = index;
+        for (int j=0;j<currentIndex;j++){
+            occupancy[start_x][start_y]++;
+            start_y+=y_iterator;
+        }
+        wire.bend1_x = start_x;
+        wire.bend1_y = start_y;
+        // Update occupancy for the vertical part
+        for (int j=0;j<deltaX;j++){
+            occupancy[start_x][start_y]++;
+            start_x+=x_iterator;
+
+        }
+        // equal sign
+        for (int j=0;j<=(deltaY-currentIndex);j++){
+            occupancy[start_x][start_y]++;
+            start_y+=y_iterator;
+        }
+
+
+    }
+
+}
+
+void within_wires(std::vector<Wire>& wires,std::vector<std::vector<int>>& occupancy,int num_threads,double SA_prob){
+	for (auto& wire : wires){
+		int deltaX = std::abs(wire.start_x-wire.end_x);
+    
+    	int deltaY = std::abs(wire.end_y - wire.start_y);
+
+    	int total = deltaX + deltaX;
+
+        int x_iterator = (wire.end_x - wire.start_x) > 0 ? 1 : -1;
+        int y_iterator = (wire.end_y - wire.start_y) > 0 ? 1 : -1;
+
+        int x = wire.start_x;
+        int y = wire.start_y;
+
+		
+		std::vector<int> costs(total);
+    	// Clear current path
+      	for(int i = 0;i<deltaX;i++){
+		  
+      		occupancy[x][y]--;
+            x+=x_iterator;
+		  
+      	}
+		for(int i = 0;i<=deltaY;i++){
+		  
+      		occupancy[x][y]--;
+            y-=y_iterator;
+
+		}
+    // start process
+		int i;
+
+    	#pragma omp parallel for private(i)
+    	for(i = 0;i<total;i++){
+			if (i < deltaX){
+                int currentIndex = i;
+        		int cost = std::numeric_limits<int>::max();
+                int start_x = wire.start_x;
+                int start_y = wire.start_y;
+
+                //  Update occupancy for the horizontal part
+                for (int j=0;j<currentIndex;j++){
+                    int current_occupancy = occupancy[start_x][start_y]+1;
+                    cost+=current_occupancy * current_occupancy;
+                    start_x+=x_iterator;
+                }
+                 // Update occupancy for the vertical part
+                for (int j=0;j<deltaY;j++){
+                    int current_occupancy = occupancy[start_x][start_y]+1;
+                    cost+=current_occupancy * current_occupancy;
+                    start_y+=y_iterator;
+
+                }
+                // equal sign
+                for (int j=0;j<=(deltaX - currentIndex);j++){
+                    int current_occupancy = occupancy[start_x][start_y]+1;
+                    cost+=current_occupancy * current_occupancy;
+                    start_x+=x_iterator;
+                }
+                // assign cost
+                costs[i] = cost;
+        }else{
+            int currentIndex = i-deltaX;
+            int cost = std::numeric_limits<int>::max();
+            int start_x = wire.start_x;
+            int start_y = wire.start_y;
+
+            for (int j=0;j<currentIndex;j++){
+                int current_occupancy = occupancy[start_x][start_y]+1;
+                cost+=current_occupancy * current_occupancy;
+                start_y+=y_iterator;
+            }
+            for (int j=0;j<deltaX;j++){
+                int current_occupancy = occupancy[start_x][start_y]+1;
+                cost+=current_occupancy * current_occupancy;
+                start_x+=x_iterator;
+            }
+            // equal sign
+            for (int j=0;j<=(deltaY - currentIndex);j++){
+                int current_occupancy = occupancy[start_x][start_y]+1;
+                cost+=current_occupancy * current_occupancy;
+                start_y+=y_iterator;
+            }
+            costs[i] = cost;
+            
+
+        }
+
+
+
+    	}
+        int path_index = select_path(costs,SA_prob);
+        update_occupmancy(path_index,occupancy,wire);
+        
+
+        
+    
+    
+    
+  	}
+}
+
 
 int main(int argc, char *argv[]) {
   const auto init_start = std::chrono::steady_clock::now();
@@ -162,11 +385,23 @@ int main(int argc, char *argv[]) {
   }
 
   /* Initialize any additional data structures needed in the algorithm */
+  init_wires(wires,occupancy);
 
   const double init_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - init_start).count();
   std::cout << "Initialization time (sec): " << std::fixed << std::setprecision(10) << init_time << '\n';
 
   const auto compute_start = std::chrono::steady_clock::now();
+  if (parallel_mode == 'W') {
+	for(int i=0;i<SA_iters;i++){
+		within_wires(wires,occupancy,num_threads,SA_prob);
+	}
+  }else{
+	for(int i=0;i<SA_iters;i++){
+		within_wires(wires,occupancy,num_threads,SA_prob);
+	}
+    
+
+  }
 
   /** 
    * Implement the wire routing algorithm here
@@ -174,6 +409,8 @@ int main(int argc, char *argv[]) {
    * Don't use global variables.
    * Use OpenMP to parallelize the algorithm. 
    */
+  
+   
 
   const double compute_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start).count();
   std::cout << "Computation time (sec): " << compute_time << '\n';
