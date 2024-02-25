@@ -90,6 +90,6 @@ cost_t update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, c
 
 cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy);
 
-void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy);
+void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iters);
 
 #endif

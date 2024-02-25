@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
     omp_set_num_threads(num_threads);
     switch (parallel_mode) {
         case 'W':
-            within_wires(wires, occupancy);
+            within_wires(wires, occupancy, SA_iters);
             break;
         case 'A':
             break;
@@ -414,44 +414,45 @@ cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> 
     return cost;
 }
 
-void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy) {
-    for (auto &wire: wires) {
-        // If the wire is horizontal or vertical, skip
-        if (num_bends(wire) == 0) {
-            continue;
-        }
-        // Remove the wire from the occupancy matrix
-        cost_t delta_cost = -update_wire<true, true>(wire, occupancy, -1);
-        int delta_x = std::abs(wire.start_x - wire.end_x);
-        int delta_y = std::abs(wire.start_y - wire.end_y);
+void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iters) {
+    for (int iter = 0; iter < iters; iter++) {
+        for (auto &wire: wires) {
+            // If the wire is horizontal or vertical, skip
+            if (num_bends(wire) == 0) {
+                continue;
+            }
+            // Remove the wire from the occupancy matrix
+            cost_t delta_cost = -update_wire<true, true>(wire, occupancy, -1);
+            int delta_x = std::abs(wire.start_x - wire.end_x);
+            int delta_y = std::abs(wire.start_y - wire.end_y);
 
 #pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y) firstprivate(occupancy)
-        for (int i = 1; i <= delta_x + delta_y; i++) {
-            cost_t _delta_cost;
-            int x;
-            int y;
-            if (i <= delta_x) {
-                x = std::min(wire.start_x, wire.end_x) + i;
-                y = wire.start_y;
-                _delta_cost = update_point<true, false>(x, y, occupancy, 1);
-            } else {
-                x = wire.end_x;
-                y = std::min(wire.start_y, wire.end_y) + i - delta_x;
-                _delta_cost = update_point<true, false>(x, y, occupancy, 1);
-            }
+            for (int i = 1; i <= delta_x + delta_y; i++) {
+                cost_t _delta_cost;
+                int x;
+                int y;
+                if (i <= delta_x) {
+                    x = std::min(wire.start_x, wire.end_x) + i;
+                    y = wire.start_y;
+                    _delta_cost = update_point<true, false>(x, y, occupancy, 1);
+                } else {
+                    x = wire.end_x;
+                    y = std::min(wire.start_y, wire.end_y) + i - delta_x;
+                    _delta_cost = update_point<true, false>(x, y, occupancy, 1);
+                }
 #pragma critical
-            {
-                if (_delta_cost < delta_cost) {
-                    delta_cost = _delta_cost;
-                    wire.bend1_x = x;
-                    wire.bend1_y = y;
+                {
+                    if (_delta_cost < delta_cost) {
+                        delta_cost = _delta_cost;
+                        wire.bend1_x = x;
+                        wire.bend1_y = y;
+                    }
                 }
             }
+            if (does_happen()) {
+                random_bend(wire);
+            }
+            update_wire<false, true>(wire, occupancy, 1);
         }
-        if (does_happen()) {
-            random_bend(wire);
-        }
-        update_wire<false, true>(wire, occupancy, 1);
-
     }
 }
