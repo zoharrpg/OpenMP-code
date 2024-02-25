@@ -241,7 +241,7 @@ void random_bend(Wire &wire) {
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> dis_x(1, delta_x + delta_y);
 
-    alter_bend<false>(dis_x(gen), nullptr, wire);
+    set_bend<false>(dis_x(gen), nullptr, wire);
 }
 
 validate_wire_t Wire::to_validate_format(void) const {
@@ -433,7 +433,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
 
 #pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y, occupancy) firstprivate(private_wire)
             for (int i = 1; i <= delta_x + delta_y; i++) {
-                cost_t _delta_cost = alter_bend<true>(i, &occupancy, private_wire);
+                cost_t _delta_cost = set_bend<true>(i, &occupancy, private_wire);
 #pragma critical
                 {
                     if (_delta_cost < delta_cost) {
