@@ -15,6 +15,7 @@
 
 #include <unistd.h>
 #include <omp.h>
+#include <random>
 
 void print_stats(const std::vector<std::vector<int>> &occupancy) {
     int max_occupancy = 0;
@@ -88,6 +89,41 @@ void write_output(const std::vector<Wire> &wires, const int num_wires, const std
     }
 
     out_wires.close();
+}
+
+double fixed_probability(const double prob = -1) {
+    static double fixed_prob = -1;
+    if (prob > 0) {
+        fixed_prob = prob;
+    }
+    return fixed_prob;
+}
+
+bool does_happen() {
+    static thread_local std::mt19937 generator(std::random_device{}());
+    std::uniform_real_distribution<double> distribution(0.0, 1.0);
+
+    static const double probability = fixed_probability();
+    return distribution(generator) < probability;
+}
+
+void random_bend(Wire &wire) {
+    int delta_x = std::abs(wire.end_x - wire.start_x);
+    int delta_y = std::abs(wire.end_y - wire.start_y);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis_x(1, delta_x + delta_y);
+
+    // 6,1
+    // 3,5
+    int random = dis_x(gen);
+    if (random <= delta_x) {
+        wire.bend1_x = std::min(wire.start_x, wire.end_x) + random;
+        wire.bend1_y = wire.start_y;
+    } else {
+        wire.bend1_x = wire.end_x;
+        wire.bend1_y = std::min(wire.start_y, wire.end_y) + random - delta_x;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -169,6 +205,7 @@ int main(int argc, char *argv[]) {
     initialize(wires, occupancy);
     const double init_time = std::chrono::duration_cast<std::chrono::duration<
             double >>(std::chrono::steady_clock::now() - init_start).count();
+    fixed_probability(SA_prob);
     std::cout << "Initialization time (sec): " << std::fixed << std::setprecision(10) << init_time << '\n';
 
     const auto compute_start = std::chrono::steady_clock::now();
@@ -231,7 +268,6 @@ validate_wire_t Wire::to_validate_format(void) const {
     }
     return wire;
 }
-
 
 int num_bends(const Wire &wire) {
     /* Returns the number of bends in the wire */
@@ -380,10 +416,8 @@ cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> 
 
 void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy) {
     for (auto &wire: wires) {
-        int bend_count = num_bends(wire);
-
         // If the wire is horizontal or vertical, skip
-        if (bend_count == 0) {
+        if (num_bends(wire) == 0) {
             continue;
         }
         // Remove the wire from the occupancy matrix
@@ -391,8 +425,8 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
         int delta_x = std::abs(wire.start_x - wire.end_x);
         int delta_y = std::abs(wire.start_y - wire.end_y);
 
-#pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y, bend_count) firstprivate(occupancy)
-        for (int i = 0; i < delta_x + delta_y; i++) {
+#pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y) firstprivate(occupancy)
+        for (int i = 1; i <= delta_x + delta_y; i++) {
             cost_t _delta_cost;
             int x;
             int y;
@@ -414,6 +448,10 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                 }
             }
         }
+        if (does_happen()) {
+            random_bend(wire);
+        }
         update_wire<false, true>(wire, occupancy, 1);
+
     }
 }
