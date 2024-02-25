@@ -199,9 +199,37 @@ int main(int argc, char *argv[]) {
 }
 
 validate_wire_t Wire::to_validate_format(void) const {
-    /* TODO(student): Implement this if you want to use the wr_checker. */
-    /* See wireroute.h for details on validate_wire_t. */
-    throw std::logic_error("to_validate_format not implemented.");
+    validate_wire_t wire;
+    int num_bend = num_bends(*this);
+    if (num_bend == 0) {
+        wire.p[0].x = start_x;
+        wire.p[0].y = start_y;
+        wire.p[1].x = end_x;
+        wire.p[1].y = end_y;
+    } else if (num_bend == 1) {
+        wire.p[0].x = start_x;
+        wire.p[0].y = start_y;
+        wire.p[1].x = bend1_x;
+        wire.p[1].y = bend1_y;
+        wire.p[2].x = end_x;
+        wire.p[2].y = end_y;
+
+    } else {
+        wire.p[0].x = start_x;
+        wire.p[0].y = start_y;
+        wire.p[1].x = bend1_x;
+        wire.p[1].y = bend1_y;
+        wire.p[3].x = end_x;
+        wire.p[3].y = end_y;
+        if (bend1_x == start_x) {
+            wire.p[2].x = end_x;
+            wire.p[2].y = bend1_y;
+        } else {
+            wire.p[2].x = bend1_x;
+            wire.p[2].y = end_x;
+        }
+    }
+    return wire;
 }
 
 
@@ -371,7 +399,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
             if (i <= delta_x) {
                 x = std::min(wire.start_x, wire.end_x) + i;
                 y = wire.start_y;
-                 _delta_cost = update_point<true, false>(x, y, occupancy, 1);
+                _delta_cost = update_point<true, false>(x, y, occupancy, 1);
             } else {
                 x = wire.end_x;
                 y = std::min(wire.start_y, wire.end_y) + i - delta_x;
