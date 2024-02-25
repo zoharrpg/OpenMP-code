@@ -197,6 +197,10 @@ int main(int argc, char *argv[]) {
 
     for (auto &wire: wires) {
         fin >> wire.start_x >> wire.start_y >> wire.end_x >> wire.end_y;
+        if (wire.start_x > wire.end_x) {
+            std::swap(wire.start_x, wire.end_x);
+            std::swap(wire.start_y, wire.end_y);
+        }
         wire.bend1_x = wire.start_x;
         wire.bend1_y = wire.end_y;
     }
