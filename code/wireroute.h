@@ -92,4 +92,9 @@ cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> 
 
 void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iters);
 
+template<bool CalculateDeltaCost>
+cost_t alter_bend(int index, std::vector<std::vector<int>> *occupancy, Wire &wire);
+
+void random_bend(Wire &wire);
+
 #endif

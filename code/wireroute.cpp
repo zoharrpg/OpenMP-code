@@ -107,25 +107,6 @@ bool does_happen() {
     return distribution(generator) < probability;
 }
 
-void random_bend(Wire &wire) {
-    int delta_x = std::abs(wire.end_x - wire.start_x);
-    int delta_y = std::abs(wire.end_y - wire.start_y);
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> dis_x(1, delta_x + delta_y);
-
-    // 6,1
-    // 3,5
-    int random = dis_x(gen);
-    if (random <= delta_x) {
-        wire.bend1_x = std::min(wire.start_x, wire.end_x) + random;
-        wire.bend1_y = wire.start_y;
-    } else {
-        wire.bend1_x = wire.end_x;
-        wire.bend1_y = std::min(wire.start_y, wire.end_y) + random - delta_x;
-    }
-}
-
 int main(int argc, char *argv[]) {
     const auto init_start = std::chrono::steady_clock::now();
 
@@ -197,10 +178,6 @@ int main(int argc, char *argv[]) {
 
     for (auto &wire: wires) {
         fin >> wire.start_x >> wire.start_y >> wire.end_x >> wire.end_y;
-        if (wire.start_x > wire.end_x) {
-            std::swap(wire.start_x, wire.end_x);
-            std::swap(wire.start_y, wire.end_y);
-        }
         wire.bend1_x = wire.start_x;
         wire.bend1_y = wire.end_y;
     }
@@ -237,6 +214,34 @@ int main(int argc, char *argv[]) {
 
     print_stats(occupancy);
     write_output(wires, num_wires, occupancy, dim_x, dim_y, num_threads, input_filename);
+}
+
+template<bool CalculateDeltaCost>
+cost_t alter_bend(int index, std::vector<std::vector<int>> *occupancy, Wire &wire) {
+    int delta_x = std::abs(wire.start_x - wire.end_x);
+    cost_t delta_cost = 0;
+    if (index <= delta_x) {
+        wire.bend1_x = std::min(wire.start_x, wire.end_x) + index;
+        wire.bend1_y = wire.start_y;
+    } else {
+        wire.bend1_x = wire.start_x;
+        wire.bend1_y = std::min(wire.start_y, wire.end_y) + index - delta_x;
+    }
+    if constexpr (CalculateDeltaCost) {
+        delta_cost = update_wire<true, false>(wire, *occupancy, 1);
+    }
+
+    return delta_cost;
+}
+
+void random_bend(Wire &wire) {
+    int delta_x = std::abs(wire.end_x - wire.start_x);
+    int delta_y = std::abs(wire.end_y - wire.start_y);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis_x(1, delta_x + delta_y);
+
+    alter_bend<false>(dis_x(gen), nullptr, wire);
 }
 
 validate_wire_t Wire::to_validate_format(void) const {
@@ -428,16 +433,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
 
 #pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y, occupancy) firstprivate(private_wire)
             for (int i = 1; i <= delta_x + delta_y; i++) {
-                cost_t _delta_cost;
-                if (i <= delta_x) {
-                    private_wire.bend1_x = std::min(wire.start_x, wire.end_x) + i;
-                    private_wire.bend1_y = wire.start_y;
-                    _delta_cost = update_wire<true, false>(private_wire, occupancy, 1);
-                } else {
-                    private_wire.bend1_x = wire.start_x;
-                    private_wire.bend1_y = std::min(wire.start_y, wire.end_y) + i - delta_x;
-                    _delta_cost = update_wire<true, false>(private_wire, occupancy, 1);
-                }
+                cost_t _delta_cost = alter_bend<true>(i, &occupancy, private_wire);
 #pragma critical
                 {
                     if (_delta_cost < delta_cost) {
