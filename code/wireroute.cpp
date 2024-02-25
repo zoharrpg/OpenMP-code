@@ -448,7 +448,6 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                 random_bend(wire);
             }
             update_wire<false, true>(wire, occupancy, 1);
-#pragma omp barrier
         }
     }
 }
