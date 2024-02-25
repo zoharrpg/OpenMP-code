@@ -74,21 +74,22 @@ float get_option_float(const char *option_name, float default_value);
 
 int num_bends(const Wire &wire);
 
-template<bool CalculateDeltaCost>
+template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire_no_bend(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
-template<bool CalculateDeltaCost>
+template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire_one_bend(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
-template<bool CalculateDeltaCost>
+template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire_two_bends(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
 cost_t calculate_cost(const std::vector<std::vector<int>> &occupancy);
 
-template <bool CalculateDeltaCost>
+template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
-cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy,
-                  const int dim_x, const int dim_y);
+cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy);
+
+void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy);
 
 #endif
