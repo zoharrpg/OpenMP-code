@@ -217,7 +217,7 @@ int main(int argc, char *argv[]) {
 }
 
 template<bool CalculateDeltaCost>
-cost_t alter_bend(int index, std::vector<std::vector<int>> *occupancy, Wire &wire) {
+cost_t set_bend(int index, std::vector<std::vector<int>> *occupancy, Wire &wire) {
     int delta_x = std::abs(wire.start_x - wire.end_x);
     cost_t delta_cost = 0;
     if (index <= delta_x) {
