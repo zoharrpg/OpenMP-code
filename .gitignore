@@ -361,6 +361,7 @@ cython_debug/
 handin.tar
 
 /code/wireroute
+/code/wireroute_debug
 
 # Input and output files
 inputs/
