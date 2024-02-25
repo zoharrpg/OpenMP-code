@@ -99,7 +99,7 @@ double fixed_probability(const double prob = -1) {
     return fixed_prob;
 }
 
-bool does_happen() {
+bool random_happen() {
     static thread_local std::mt19937 generator(std::random_device{}());
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
 
@@ -443,7 +443,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                     }
                 }
             }
-            if (does_happen()) {
+            if (random_happen()) {
                 random_bend(wire);
             }
             update_wire<false, true>(wire, occupancy, 1);
