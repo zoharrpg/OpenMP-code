@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <omp.h>
 
-void print_stats(const std::vector <std::vector<int>> &occupancy) {
+void print_stats(const std::vector<std::vector<int>> &occupancy) {
     int max_occupancy = 0;
     long long total_cost = 0;
 
@@ -31,7 +31,7 @@ void print_stats(const std::vector <std::vector<int>> &occupancy) {
     std::cout << "Total cost: " << total_cost << '\n';
 }
 
-void write_output(const std::vector <Wire> &wires, const int num_wires, const std::vector <std::vector<int>> &occupancy,
+void write_output(const std::vector<Wire> &wires, const int num_wires, const std::vector<std::vector<int>> &occupancy,
                   const int dim_x, const int dim_y, const int num_threads, std::string input_filename) {
     if (std::size(input_filename) >= 4 && input_filename.substr(std::size(input_filename) - 4) == ".txt") {
         input_filename.resize(std::size(input_filename) - 4);
@@ -88,132 +88,6 @@ void write_output(const std::vector <Wire> &wires, const int num_wires, const st
     }
 
     out_wires.close();
-}
-
-int num_bends(const Wire &wire) {
-    /* Returns the number of bends in the wire */
-    return (wire.start_x != wire.bend1_x) + (wire.bend1_x != wire.end_x) + (wire.start_y != wire.bend1_y) +
-           (wire.bend1_y != wire.end_y) - 1;
-}
-
-int update_wire_no_bend(const Wire &wire, std::vector <std::vector<int>> &occupancy, const int delta) {
-    int delta_cost = 0;
-    if (wire.start_y == wire.end_y) {
-        // Horizontal wire
-        for (int x = std::min(wire.start_x, wire.end_x); x <= std::max(wire.start_x, wire.end_x); x++) {
-            delta_cost += (occupancy[wire.start_y][x] + delta) * (occupancy[wire.start_y][x] + delta) -
-                          occupancy[wire.start_y][x] * occupancy[wire.start_y][x];
-            occupancy[wire.start_y][x] += delta;
-        }
-    } else {
-        // Vertical wire
-        for (int y = std::min(wire.start_y, wire.end_y); y <= std::max(wire.start_y, wire.end_y); y++) {
-            delta_cost += (occupancy[y][wire.start_x] + delta) * (occupancy[y][wire.start_x] + delta) -
-                          occupancy[y][wire.start_x] * occupancy[y][wire.start_x];
-            occupancy[y][wire.start_x] += delta;
-        }
-    }
-    return delta_cost;
-}
-
-int update_wire_one_bend(const Wire &wire, std::vector <std::vector<int>> &occupancy, const int delta) {
-    int delta_cost = 0;
-    if (wire.start_x == wire.bend1_x) {
-        // Vertical first bend
-        for (int y = std::min(wire.start_y, wire.bend1_y); y <= std::max(wire.start_y, wire.bend1_y); y++) {
-            delta_cost += (occupancy[y][wire.start_x] + delta) * (occupancy[y][wire.start_x] + delta) -
-                          occupancy[y][wire.start_x] * occupancy[y][wire.start_x];
-            occupancy[y][wire.start_x] += delta;
-        }
-
-        // Horizontal second bend
-        for (int x = std::min(wire.bend1_x, wire.end_x); x <= std::max(wire.bend1_x, wire.end_x); x++) {
-            delta_cost += (occupancy[wire.bend1_y][x] + delta) * (occupancy[wire.bend1_y][x] + delta) -
-                          occupancy[wire.bend1_y][x] * occupancy[wire.bend1_y][x];
-            occupancy[wire.bend1_y][x] += delta;
-        }
-    } else {
-        // Horizontal first bend
-        for (int x = std::min(wire.start_x, wire.bend1_x); x <= std::max(wire.start_x, wire.bend1_x); x++) {
-            delta_cost += (occupancy[wire.start_y][x] + delta) * (occupancy[wire.start_y][x] + delta) -
-                          occupancy[wire.start_y][x] * occupancy[wire.start_y][x];
-            occupancy[wire.bend1_y][x] += delta;
-        }
-
-        // Vertical second bend
-        for (int y = std::min(wire.bend1_y, wire.end_y); y <= std::max(wire.bend1_y, wire.end_y); y++) {
-            delta_cost += (occupancy[y][wire.bend1_x] + delta) * (occupancy[y][wire.bend1_x] + delta) -
-                          occupancy[y][wire.bend1_x] * occupancy[y][wire.bend1_x];
-            occupancy[y][wire.bend1_x] += delta;
-        }
-    }
-
-    return delta_cost;
-}
-
-int update_wire_two_bends(const Wire &wire, std::vector <std::vector<int>> &occupancy, const int delta) {
-    int delta_cost = update_wire_one_bend(wire, occupancy, delta);
-    if (wire.start_x == wire.bend1_x) {
-        // Vertical third
-        for (int y = std::min(wire.bend1_y, wire.end_y); y <= std::max(wire.bend1_y, wire.end_y); y++) {
-            delta_cost += (occupancy[y][wire.bend1_x] + delta) * (occupancy[y][wire.bend1_x] + delta) -
-                          occupancy[y][wire.bend1_x] * occupancy[y][wire.bend1_x];
-            occupancy[y][wire.bend1_x] += delta;
-        }
-    } else {
-        // Horizontal second
-        for (int x = std::min(wire.bend1_x, wire.end_x); x <= std::max(wire.bend1_x, wire.end_x); x++) {
-            delta_cost += (occupancy[wire.bend1_y][x] + delta) * (occupancy[wire.bend1_y][x] + delta) -
-                          occupancy[wire.bend1_y][x] * occupancy[wire.bend1_y][x];
-            occupancy[wire.bend1_y][x] += delta;
-        }
-    }
-    return delta_cost;
-}
-
-int calculate_cost(const std::vector <std::vector<int>> &occupancy) {
-    int total_cost = 0;
-    for (const auto &row: occupancy) {
-        for (const int count: row) {
-            if (count > MAX_PTS_PER_WIRE) {
-                std::cerr << "Invalid occupancy count: " << count << '\n';
-            }
-            total_cost += count * count;
-        }
-    }
-    return total_cost;
-}
-
-int update_wire(const Wire &wire, std::vector <std::vector<int>> &occupancy, const int dim_x, const int dim_y,
-                 const int delta) {
-    int delta_cost = 0;
-    int num_bend = num_bends(wire);
-    switch (num_bend) {
-        case 0:
-            // No bends
-            delta_cost = update_wire_no_bend(wire, occupancy, delta);
-            break;
-        case 1:
-            // One bend
-            delta_cost = update_wire_one_bend(wire, occupancy, delta);
-            break;
-        case 2:
-            // Two bends
-            delta_cost = update_wire_two_bends(wire, occupancy, delta);
-            break;
-        default:
-            std::cerr << "Invalid number of bends: " << num_bend << '\n';
-            exit(EXIT_FAILURE);
-    }
-    return delta_cost;
-}
-
-void initialize(const std::vector <Wire> &wires, std::vector <std::vector<int>> &occupancy,
-                const int dim_x, const int dim_y) {
-    /* Initialize occupancy matrix */
-    for (const auto &wire: wires) {
-        update_wire(wire, occupancy, dim_x, dim_y, 1);
-    }
 }
 
 int main(int argc, char *argv[]) {
@@ -282,7 +156,7 @@ int main(int argc, char *argv[]) {
     /* Read the grid dimension and wire information from file */
     fin >> dim_x >> dim_y >> num_wires;
 
-    std::vector <Wire> wires(num_wires);
+    std::vector<Wire> wires(num_wires);
     std::vector occupancy(dim_y, std::vector<int>(dim_x));
 
     for (auto &wire: wires) {
@@ -293,8 +167,8 @@ int main(int argc, char *argv[]) {
 
     /* Initialize any additional data structures needed in the algorithm */
     initialize(wires, occupancy, dim_x, dim_y);
-    const double init_time = std::chrono::duration_cast < std::chrono::duration <
-                             double >> (std::chrono::steady_clock::now() - init_start).count();
+    const double init_time = std::chrono::duration_cast<std::chrono::duration<
+            double >>(std::chrono::steady_clock::now() - init_start).count();
     std::cout << "Initialization time (sec): " << std::fixed << std::setprecision(10) << init_time << '\n';
 
     const auto compute_start = std::chrono::steady_clock::now();
@@ -305,9 +179,16 @@ int main(int argc, char *argv[]) {
      * Don't use global variables.
      * Use OpenMP to parallelize the algorithm.
      */
+    omp_set_num_threads(num_threads);
+    switch (parallel_mode) {
+        case 'W':
+            break;
+        case 'A':
+            break;
+    }
 
-    const double compute_time = std::chrono::duration_cast < std::chrono::duration <
-                                double >> (std::chrono::steady_clock::now() - compute_start).count();
+    const double compute_time = std::chrono::duration_cast<std::chrono::duration<
+            double >>(std::chrono::steady_clock::now() - compute_start).count();
     std::cout << "Computation time (sec): " << compute_time << '\n';
 
     /* Write wires and occupancy matrix to files */
@@ -320,4 +201,133 @@ validate_wire_t Wire::to_validate_format(void) const {
     /* TODO(student): Implement this if you want to use the wr_checker. */
     /* See wireroute.h for details on validate_wire_t. */
     throw std::logic_error("to_validate_format not implemented.");
+}
+
+
+int num_bends(const Wire &wire) {
+    /* Returns the number of bends in the wire */
+    return (wire.start_x != wire.bend1_x) + (wire.bend1_x != wire.end_x) + (wire.start_y != wire.bend1_y) +
+           (wire.bend1_y != wire.end_y) - 1;
+}
+
+int update_wire_no_bend(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta) {
+    int delta_cost = 0;
+    if (wire.start_y == wire.end_y) {
+        // Horizontal wire
+        for (int x = std::min(wire.start_x, wire.end_x); x <= std::max(wire.start_x, wire.end_x); x++) {
+            delta_cost += (occupancy[wire.start_y][x] + delta) * (occupancy[wire.start_y][x] + delta) -
+                          occupancy[wire.start_y][x] * occupancy[wire.start_y][x];
+            occupancy[wire.start_y][x] += delta;
+        }
+    } else {
+        // Vertical wire
+        for (int y = std::min(wire.start_y, wire.end_y); y <= std::max(wire.start_y, wire.end_y); y++) {
+            delta_cost += (occupancy[y][wire.start_x] + delta) * (occupancy[y][wire.start_x] + delta) -
+                          occupancy[y][wire.start_x] * occupancy[y][wire.start_x];
+            occupancy[y][wire.start_x] += delta;
+        }
+    }
+    return delta_cost;
+}
+
+int update_wire_one_bend(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta) {
+    int delta_cost = 0;
+    if (wire.start_x == wire.bend1_x) {
+        // Vertical first bend
+        for (int y = std::min(wire.start_y, wire.bend1_y); y <= std::max(wire.start_y, wire.bend1_y); y++) {
+            delta_cost += (occupancy[y][wire.start_x] + delta) * (occupancy[y][wire.start_x] + delta) -
+                          occupancy[y][wire.start_x] * occupancy[y][wire.start_x];
+            occupancy[y][wire.start_x] += delta;
+        }
+
+        // Horizontal second bend
+        for (int x = std::min(wire.bend1_x, wire.end_x); x <= std::max(wire.bend1_x, wire.end_x); x++) {
+            delta_cost += (occupancy[wire.bend1_y][x] + delta) * (occupancy[wire.bend1_y][x] + delta) -
+                          occupancy[wire.bend1_y][x] * occupancy[wire.bend1_y][x];
+            occupancy[wire.bend1_y][x] += delta;
+        }
+    } else {
+        // Horizontal first bend
+        for (int x = std::min(wire.start_x, wire.bend1_x); x <= std::max(wire.start_x, wire.bend1_x); x++) {
+            delta_cost += (occupancy[wire.start_y][x] + delta) * (occupancy[wire.start_y][x] + delta) -
+                          occupancy[wire.start_y][x] * occupancy[wire.start_y][x];
+            occupancy[wire.bend1_y][x] += delta;
+        }
+
+        // Vertical second bend
+        for (int y = std::min(wire.bend1_y, wire.end_y); y <= std::max(wire.bend1_y, wire.end_y); y++) {
+            delta_cost += (occupancy[y][wire.bend1_x] + delta) * (occupancy[y][wire.bend1_x] + delta) -
+                          occupancy[y][wire.bend1_x] * occupancy[y][wire.bend1_x];
+            occupancy[y][wire.bend1_x] += delta;
+        }
+    }
+
+    return delta_cost;
+}
+
+int update_wire_two_bends(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta) {
+    int delta_cost = update_wire_one_bend(wire, occupancy, delta);
+    if (wire.start_x == wire.bend1_x) {
+        // Vertical third
+        for (int y = std::min(wire.bend1_y, wire.end_y); y <= std::max(wire.bend1_y, wire.end_y); y++) {
+            delta_cost += (occupancy[y][wire.bend1_x] + delta) * (occupancy[y][wire.bend1_x] + delta) -
+                          occupancy[y][wire.bend1_x] * occupancy[y][wire.bend1_x];
+            occupancy[y][wire.bend1_x] += delta;
+        }
+    } else {
+        // Horizontal second
+        for (int x = std::min(wire.bend1_x, wire.end_x); x <= std::max(wire.bend1_x, wire.end_x); x++) {
+            delta_cost += (occupancy[wire.bend1_y][x] + delta) * (occupancy[wire.bend1_y][x] + delta) -
+                          occupancy[wire.bend1_y][x] * occupancy[wire.bend1_y][x];
+            occupancy[wire.bend1_y][x] += delta;
+        }
+    }
+    return delta_cost;
+}
+
+int calculate_cost(const std::vector<std::vector<int>> &occupancy) {
+    int total_cost = 0;
+    for (const auto &row: occupancy) {
+        for (const int count: row) {
+            if (count > MAX_PTS_PER_WIRE) {
+                std::cerr << "Invalid occupancy count: " << count << '\n';
+            }
+            total_cost += count * count;
+        }
+    }
+    return total_cost;
+}
+
+int update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int dim_x, const int dim_y,
+                const int delta) {
+    int delta_cost = 0;
+    int num_bend = num_bends(wire);
+    switch (num_bend) {
+        case 0:
+            // No bends
+            delta_cost = update_wire_no_bend(wire, occupancy, delta);
+            break;
+        case 1:
+            // One bend
+            delta_cost = update_wire_one_bend(wire, occupancy, delta);
+            break;
+        case 2:
+            // Two bends
+            delta_cost = update_wire_two_bends(wire, occupancy, delta);
+            break;
+        default:
+            std::cerr << "Invalid number of bends: " << num_bend << '\n';
+            exit(EXIT_FAILURE);
+    }
+    return delta_cost;
+}
+
+int initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy,
+               const int dim_x, const int dim_y) {
+    /* Initialize occupancy matrix */
+    int cost = 0;
+    for (const auto &wire: wires) {
+        cost += update_wire(wire, occupancy, dim_x, dim_y, 1);
+    }
+    return cost;
 }
