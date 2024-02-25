@@ -426,7 +426,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
             int delta_x = std::abs(wire.start_x - wire.end_x);
             int delta_y = std::abs(wire.start_y - wire.end_y);
 
-#pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y) firstprivate(occupancy)
+#pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y, occupancy)
             for (int i = 1; i <= delta_x + delta_y; i++) {
                 cost_t _delta_cost;
                 int x;
@@ -453,6 +453,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                 random_bend(wire);
             }
             update_wire<false, true>(wire, occupancy, 1);
+#pragma omp barrier
         }
     }
 }
