@@ -361,3 +361,9 @@ cython_debug/
 handin.tar
 
 /code/wireroute
+
+# Input and output files
+inputs/
+
+# Java compiled files
+*.class
