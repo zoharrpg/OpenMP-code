@@ -166,6 +166,7 @@ void clear_path(Wire& wire,std::vector<std::vector<int>>& occupancy){
 		std::cout << "Big error\n"<<std::endl;
 		exit(1);
 	}
+    
     if(bend2_x == wire.end_x && bend2_y == wire.end_y){
         
         calculate_path(bend1_x,bend1_y,wire.start_x,wire.start_y,-1,occupancy);
@@ -188,19 +189,19 @@ void clear_path(Wire& wire,std::vector<std::vector<int>>& occupancy){
 
 }
 
-int select_path(std::vector<int>& costs,double SA_prob){
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0.0,1.0);
-    if (dis(gen) > SA_prob){
+int select_path(std::vector<long>& costs,double SA_prob){
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+    // std::uniform_real_distribution<> dis(0.0,1.0);
+    // if (dis(gen) > SA_prob){
         auto minIt = std::min_element(costs.begin(),costs.end());
         int mini_index = std::distance(costs.begin(),minIt);
         return mini_index;
 
-    }else{
-        std::uniform_int_distribution<> distr(0,costs.size()-1);
-        return distr(gen);
-    }
+    // }else{
+    //     std::uniform_int_distribution<> distr(0,costs.size()-1);
+    //     return distr(gen);
+    // }
     
 
 }
@@ -257,7 +258,10 @@ void update_occupmancy(int index,std::vector<std::vector<int>>& occupancy,Wire& 
 }
 
 void within_wires(std::vector<Wire>& wires,std::vector<std::vector<int>>& occupancy,int num_threads,double SA_prob){
+    int count = 0;
 	for (auto& wire : wires){
+        count++;
+        std::cout << "The wire is "<<wire.start_x << " "<<wire.start_y << " " <<wire.end_x << " " <<wire.end_y << " " << wire.bend1_x << wire.bend1_y <<std::endl;
         if ((wire.start_x == wire.end_x) || (wire.start_y == wire.end_y)){
             continue;
         }
@@ -271,17 +275,17 @@ void within_wires(std::vector<Wire>& wires,std::vector<std::vector<int>>& occupa
         int y_iterator = (wire.end_y - wire.start_y) > 0 ? 1 : -1;
 
 		
-		std::vector<int> costs(total);
+		std::vector<long> costs(total);
     	// Clear current path
         clear_path(wire,occupancy);
-    // start process
+        // start process
 		int i;
 
-    	#pragma omp parallel for private(i) shared(wire)
+    	#pragma omp parallel for private(i) shared(wire) num_threads(num_threads)
     	for(i = 1;i<=total;i++){
 			if (i <= deltaX){
                 int currentIndex = i;
-        		int cost = 0;
+        		long cost = 0;
                 int start_x = wire.start_x;
                 int start_y = wire.start_y;
                 int end_x = wire.end_x;
@@ -345,11 +349,17 @@ void within_wires(std::vector<Wire>& wires,std::vector<std::vector<int>>& occupa
 
         }
 
-
-
     	}
         int path_index = select_path(costs,SA_prob);
+        
         update_occupmancy(path_index+1,occupancy,wire);
+        //break;
+        std::cout << "The wire is "<<wire.start_x << " "<<wire.start_y << " " <<wire.end_x << " " <<wire.end_y << " " << wire.bend1_x << " "<< wire.bend1_y <<std::endl;
+        std::cout << "The size of vector is "<<costs.size()<<std::endl;
+        std::cout << "The total is " << total<<std::endl;
+        std::cout << "The count is " << count<<std::endl;
+         std::cout << "The size of wires is "<<wires.size()<<std::endl;
+        
 	}
 }
 
@@ -427,20 +437,21 @@ int main(int argc, char *argv[]) {
   }
 
   /* Initialize any additional data structures needed in the algorithm */
-	init_wires(wires,occupancy);
+    init_wires(wires,occupancy);
+    within_wires(wires,occupancy,num_threads,SA_prob);
 
 
   const double init_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - init_start).count();
   std::cout << "Initialization time (sec): " << std::fixed << std::setprecision(10) << init_time << '\n';
 
   const auto compute_start = std::chrono::steady_clock::now();
-  if (parallel_mode == 'W') {
-	for(int i=0;i<SA_iters;i++){
-		within_wires(wires,occupancy,num_threads,SA_prob);
-    }
-  }else{
-	within_wires(wires,occupancy,num_threads,SA_prob);
-  }
+//   if (parallel_mode == 'W') {
+// 	for(int i=0;i<SA_iters;i++){
+// 		within_wires(wires,occupancy,num_threads,SA_prob);
+//     }
+//   }else{
+// 	  within_wires(wires,occupancy,num_threads,SA_prob);
+//   }
 
   /** 
    * Implement the wire routing algorithm here
