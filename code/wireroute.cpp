@@ -88,34 +88,106 @@ void write_output(const std::vector<Wire>& wires, const int num_wires, const std
 
   out_wires.close();
 }
+
+void calculate_path(int x1,int y1,int x2,int y2,int change,std::vector<std::vector<int>>& occupancy){
+    int start_x = std::min(x1,x2);
+    int start_y = std::min(y1,y2);
+    int end_x = std::max(x1,x2);
+    int end_y = std::max(y1,y2);
+
+    
+    for(int i = start_x+1;i< end_x;i++){
+		occupancy[i][start_y]+=change;
+		
+    }
+	
+    for(int i = start_y+1;i<end_y;i++){
+        occupancy[end_x][i]+=change;
+	}
+}
+int calculate_cost(int x1,int y1,int x2,int y2,std::vector<std::vector<int>>& occupancy){
+    int start_x = std::min(x1,x2);
+    int start_y = std::min(y1,y2);
+    int end_x = std::max(x1,x2);
+    int end_y = std::max(y1,y2);
+    int cost = 0;
+
+    
+    for(int i = start_x+1;i< end_x;i++){
+		int current = occupancy[i][start_y]+1;
+        cost+= current * current;
+		
+    }
+	
+    for(int i = start_y+1;i<end_y;i++){
+        int current = occupancy[end_x][i]+1;
+        cost+=current * current;
+
+    }
+    return cost;
+}   
 void init_wires(std::vector<Wire>& wires,std::vector<std::vector<int>>& occupancy){
 	for (auto& wire:wires){
-
-		int deltaX = std::abs(wire.start_x - wire.end_x);
-        int deltaY = std::abs(wire.start_y - wire.end_y);
-
-        int x_iterator = (wire.end_x - wire.start_x) > 0 ? 1 : -1;
-        int y_iterator = (wire.end_y - wire.start_y) > 0 ? 1 : -1;
-
-		int x = wire.start_x;
-        int y = wire.start_y;
-		for(int i = 0;i< deltaX;i++){
-		    occupancy[x][y]++;
-            x +=x_iterator;
-		
+        wire.bend1_x = wire.end_x;
+        wire.bend1_y = wire.start_y;
+        calculate_path(wire.bend1_x,wire.bend1_y,wire.start_x,wire.start_y,+1,occupancy);
+        calculate_path(wire.bend1_x,wire.bend1_y,wire.end_x,wire.end_y,+1,occupancy);
+        occupancy[wire.start_x][wire.start_y]++;
+        occupancy[wire.end_x][wire.end_y]++;
+        if(!(wire.start_x == wire.end_x || wire.start_y == wire.end_y)){
+            occupancy[wire.bend1_x][wire.bend1_y]++;
         }
-		if (deltaX!=0 && deltaY!=0){
-		    wire.bend1_x = x;
-		    wire.bend1_y = y;
-		}
-		for(int i = 0;i<= deltaY;i++){
-		    occupancy[x][y]++;
-            y+=y_iterator;
-		}
-		
-	}
+        
+    }
 
 }
+
+void clear_path(Wire& wire,std::vector<std::vector<int>>& occupancy){
+    if ((wire.start_x == wire.end_x) || (wire.start_y == wire.end_y)){
+        calculate_path(wire.start_x,wire.start_y,wire.end_x,wire.end_y,-1,occupancy);
+        // clearn end points
+        occupancy[wire.start_x][wire.start_y]--;
+        occupancy[wire.end_x][wire.end_y]--;
+        return;
+
+    }
+    
+    int bend1_x = wire.bend1_x;
+    int bend1_y = wire.bend1_y;
+    int bend2_x;
+    int bend2_y;
+    if (bend1_x == wire.start_x){
+        bend2_x = wire.end_x;
+        bend2_y = bend1_y;
+    }else if (bend1_y == wire.start_y){
+        bend2_x = bend1_x;
+        bend2_y = wire.end_y;
+    }else{
+		std::cout << "Big error\n"<<std::endl;
+		exit(1);
+	}
+    if(bend2_x == wire.end_x && bend2_y == wire.end_y){
+        
+        calculate_path(bend1_x,bend1_y,wire.start_x,wire.start_y,-1,occupancy);
+        calculate_path(bend1_x,bend1_y,wire.end_x,wire.end_y,-1,occupancy);
+        occupancy[bend1_x][bend1_y]--;
+        occupancy[wire.start_x][wire.start_y]--;
+        occupancy[wire.end_x][wire.end_y]--;
+        return;
+    }
+
+    calculate_path(bend1_x,bend1_y,wire.start_x,wire.start_y,-1,occupancy);
+    calculate_path(bend1_x,bend1_y,bend2_x,bend2_y,-1,occupancy);
+    calculate_path(bend2_x,bend2_y,wire.end_x,wire.end_y,-1,occupancy);
+    occupancy[bend1_x][bend1_y]--;
+    occupancy[bend2_x][bend2_y]--;
+    occupancy[wire.start_x][wire.start_y]--;
+    occupancy[wire.end_x][wire.end_y]--;
+
+
+
+}
+
 int select_path(std::vector<int>& costs,double SA_prob){
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -132,167 +204,143 @@ int select_path(std::vector<int>& costs,double SA_prob){
     
 
 }
-void update_occupmancy(int index,std::vector<std::vector<int>>& occupancy,Wire wire){
+void update_occupmancy(int index,std::vector<std::vector<int>>& occupancy,Wire& wire){
     int deltaX = std::abs(wire.start_x-wire.end_x);
     
-    int deltaY = std::abs(wire.end_y - wire.start_y);
+    //int deltaY = std::abs(wire.end_y - wire.start_y);
     int x_iterator = (wire.end_x - wire.start_x) > 0 ? 1 : -1;
     int y_iterator = (wire.end_y - wire.start_y) > 0 ? 1 : -1;
     
     int start_x = wire.start_x;
     int start_y = wire.start_y;
-    if (deltaX ==0){
-        for(int i = 0;i<deltaY;i++){
-            occupancy[start_x][start_y]++;
-            start_y+=y_iterator;
-        }
-        wire.bend1_x = wire.start_x;
-        wire.bend1_y =wire.start_y;
-        return;
+    int end_x = wire.end_x;
+    int end_y = wire.end_y;
+    int bend1_x;
+    int bend1_y;
+    int bend2_x;
+    int bend2_y;
+    if (index<=deltaX){
+        bend1_x = start_x + x_iterator * index;
+        bend1_y = start_y;
+        bend2_x = bend1_x;
+        bend2_y = end_y;
+    }else{
+        bend1_x = start_x;
+        bend1_y = start_y + y_iterator*(index-deltaX);
+        bend2_x = end_x;
+        bend2_y = bend1_y;
+
+    }
+
+    if (bend2_x == end_x && bend2_y == end_y){
+        calculate_path(start_x,start_y,bend1_x,bend1_y,1,occupancy);
+        calculate_path(end_x,end_y,bend1_x,bend1_y,1,occupancy);
+        occupancy[bend1_x][bend1_y]++;
+        occupancy[wire.start_x][wire.start_y]++;
+        occupancy[wire.end_x][wire.end_y]++;
         
-    }
-    if (deltaY == 0){
-        for(int i = 0;i<deltaX;i++){
-            occupancy[start_x][start_y]++;
-            start_x+=x_iterator;
-        }
-        wire.bend1_x = wire.start_x;
-        wire.bend1_y =wire.start_y;
-        return;
-    }
-
-
-    if (index < deltaX){
-        int currentIndex = index;
-
-        //  Update occupancy for the horizontal part
-        for (int j=0;j<currentIndex;j++){
-            occupancy[start_x][start_y]++;
-            start_x+=x_iterator;
-        }
-        wire.bend1_x = start_x;
-        wire.bend1_y = start_y;
-        // Update occupancy for the vertical part
-        for (int j=0;j<deltaY;j++){
-            occupancy[start_x][start_y]++;
-            start_y+=y_iterator;
-
-        }
-        // equal sign
-        for (int j=0;j<=(deltaX-currentIndex);j++){
-                occupancy[start_x][start_y]++;
-                start_x+=x_iterator;
-        }
 
     }else{
-        int currentIndex = index;
-        for (int j=0;j<currentIndex;j++){
-            occupancy[start_x][start_y]++;
-            start_y+=y_iterator;
-        }
-        wire.bend1_x = start_x;
-        wire.bend1_y = start_y;
-        // Update occupancy for the vertical part
-        for (int j=0;j<deltaX;j++){
-            occupancy[start_x][start_y]++;
-            start_x+=x_iterator;
-
-        }
-        // equal sign
-        for (int j=0;j<=(deltaY-currentIndex);j++){
-            occupancy[start_x][start_y]++;
-            start_y+=y_iterator;
-        }
-
-
+        calculate_path(bend1_x,bend1_y,wire.start_x,wire.start_y,1,occupancy);
+        calculate_path(bend1_x,bend1_y,bend2_x,bend2_y,1,occupancy);
+        calculate_path(bend2_x,bend2_y,wire.end_x,wire.end_y,1,occupancy);
+        occupancy[bend1_x][bend1_y]++;
+        occupancy[bend2_x][bend2_y]++;
+        occupancy[wire.start_x][wire.start_y]++;
+        occupancy[wire.end_x][wire.end_y]++;
     }
+    wire.bend1_x = bend1_x;
+    wire.bend1_y = bend1_y;
+    
+
 
 }
 
 void within_wires(std::vector<Wire>& wires,std::vector<std::vector<int>>& occupancy,int num_threads,double SA_prob){
 	for (auto& wire : wires){
+        if ((wire.start_x == wire.end_x) || (wire.start_y == wire.end_y)){
+            continue;
+        }
 		int deltaX = std::abs(wire.start_x-wire.end_x);
     
-    	int deltaY = std::abs(wire.end_y - wire.start_y);
+    	//int deltaY = std::abs(wire.end_y - wire.start_y);
 
     	int total = deltaX + deltaX;
 
         int x_iterator = (wire.end_x - wire.start_x) > 0 ? 1 : -1;
         int y_iterator = (wire.end_y - wire.start_y) > 0 ? 1 : -1;
 
-        int x = wire.start_x;
-        int y = wire.start_y;
-
 		
 		std::vector<int> costs(total);
     	// Clear current path
-      	for(int i = 0;i<deltaX;i++){
-		  
-      		occupancy[x][y]--;
-            x+=x_iterator;
-		  
-      	}
-		for(int i = 0;i<=deltaY;i++){
-		  
-      		occupancy[x][y]--;
-            y-=y_iterator;
-
-		}
+        clear_path(wire,occupancy);
     // start process
 		int i;
 
-    	#pragma omp parallel for private(i)
-    	for(i = 0;i<total;i++){
-			if (i < deltaX){
+    	#pragma omp parallel for private(i) shared(wire)
+    	for(i = 1;i<=total;i++){
+			if (i <= deltaX){
                 int currentIndex = i;
-        		int cost = std::numeric_limits<int>::max();
+        		int cost = 0;
                 int start_x = wire.start_x;
                 int start_y = wire.start_y;
+                int end_x = wire.end_x;
+                int end_y = wire.end_y;
+                int bend1_x = start_x + x_iterator * currentIndex;
+                int bend1_y = start_y;
+                
+                int bend2_x = bend1_x;
+                int bend2_y = end_y;
 
-                //  Update occupancy for the horizontal part
-                for (int j=0;j<currentIndex;j++){
-                    int current_occupancy = occupancy[start_x][start_y]+1;
-                    cost+=current_occupancy * current_occupancy;
-                    start_x+=x_iterator;
-                }
-                 // Update occupancy for the vertical part
-                for (int j=0;j<deltaY;j++){
-                    int current_occupancy = occupancy[start_x][start_y]+1;
-                    cost+=current_occupancy * current_occupancy;
-                    start_y+=y_iterator;
+                if (bend2_x == end_x && bend2_y == end_y){
+                    cost+=calculate_cost(start_x,start_y,bend1_x,bend1_y,occupancy);
+                    cost+=calculate_cost(end_x,end_y,bend1_x,bend1_y,occupancy);
+                    cost+= (occupancy[start_x][start_y]+1) * (occupancy[start_x][start_y]+1);
+                    cost+=(occupancy[end_x][end_y]+1) * (occupancy[end_x][end_y]+1);
+                    cost+=(occupancy[bend1_x][bend1_y]+1) * (occupancy[bend1_x][bend1_y]+1);
+                }else{
+                    cost+=calculate_cost(start_x,start_y,bend1_x,bend1_y,occupancy);
+                    cost+=calculate_cost(bend1_x,bend1_y,bend2_x,bend2_y,occupancy);
+                    cost+=calculate_cost(end_x,end_y,bend2_x,bend2_y,occupancy);
 
+                    cost+= (occupancy[start_x][start_y]+1) * (occupancy[start_x][start_y]+1);
+                    cost+=(occupancy[end_x][end_y]+1) * (occupancy[end_x][end_y]+1);
+                    cost+=(occupancy[bend1_x][bend1_y]+1) * (occupancy[bend1_x][bend1_y]+1);
+                    cost+=(occupancy[bend2_x][bend2_y]+1) * (occupancy[bend2_x][bend2_y]+1);
                 }
-                // equal sign
-                for (int j=0;j<=(deltaX - currentIndex);j++){
-                    int current_occupancy = occupancy[start_x][start_y]+1;
-                    cost+=current_occupancy * current_occupancy;
-                    start_x+=x_iterator;
-                }
-                // assign cost
-                costs[i] = cost;
+                costs[i-1] = cost;
         }else{
             int currentIndex = i-deltaX;
-            int cost = std::numeric_limits<int>::max();
+            int cost = 0;
             int start_x = wire.start_x;
             int start_y = wire.start_y;
+            int end_x = wire.end_x;
+            int end_y = wire.end_y;
+            
+            int bend1_x = start_x;
+            int bend1_y = start_y + y_iterator*currentIndex;
+                
+            int bend2_x = end_x;
+            int bend2_y = bend1_y;
 
-            for (int j=0;j<currentIndex;j++){
-                int current_occupancy = occupancy[start_x][start_y]+1;
-                cost+=current_occupancy * current_occupancy;
-                start_y+=y_iterator;
+            if (bend2_x == end_x && bend2_y == end_y){
+                cost+=calculate_cost(start_x,start_y,bend1_x,bend1_y,occupancy);
+                cost+=calculate_cost(end_x,end_y,bend1_x,bend1_y,occupancy);
+                cost+= (occupancy[start_x][start_y]+1) * (occupancy[start_x][start_y]+1);
+                cost+=(occupancy[end_x][end_y]+1) * (occupancy[end_x][end_y]+1);
+                cost+=(occupancy[bend1_x][bend1_y]+1) * (occupancy[bend1_x][bend1_y]+1);
+            }else{
+                cost+=calculate_cost(start_x,start_y,bend1_x,bend1_y,occupancy);
+                cost+=calculate_cost(bend1_x,bend1_y,bend2_x,bend2_y,occupancy);
+                cost+=calculate_cost(end_x,end_y,bend2_x,bend2_y,occupancy);
+
+                cost+= (occupancy[start_x][start_y]+1) * (occupancy[start_x][start_y]+1);
+                cost+=(occupancy[end_x][end_y]+1) * (occupancy[end_x][end_y]+1);
+                cost+=(occupancy[bend1_x][bend1_y]+1) * (occupancy[bend1_x][bend1_y]+1);
+                cost+=(occupancy[bend2_x][bend2_y]+1) * (occupancy[bend2_x][bend2_y]+1);
             }
-            for (int j=0;j<deltaX;j++){
-                int current_occupancy = occupancy[start_x][start_y]+1;
-                cost+=current_occupancy * current_occupancy;
-                start_x+=x_iterator;
-            }
-            // equal sign
-            for (int j=0;j<=(deltaY - currentIndex);j++){
-                int current_occupancy = occupancy[start_x][start_y]+1;
-                cost+=current_occupancy * current_occupancy;
-                start_y+=y_iterator;
-            }
-            costs[i] = cost;
+
+            costs[i-1] = cost;
             
 
         }
@@ -301,14 +349,8 @@ void within_wires(std::vector<Wire>& wires,std::vector<std::vector<int>>& occupa
 
     	}
         int path_index = select_path(costs,SA_prob);
-        update_occupmancy(path_index,occupancy,wire);
-        
-
-        
-    
-    
-    
-  	}
+        update_occupmancy(path_index+1,occupancy,wire);
+	}
 }
 
 
@@ -385,7 +427,8 @@ int main(int argc, char *argv[]) {
   }
 
   /* Initialize any additional data structures needed in the algorithm */
-  init_wires(wires,occupancy);
+	init_wires(wires,occupancy);
+
 
   const double init_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - init_start).count();
   std::cout << "Initialization time (sec): " << std::fixed << std::setprecision(10) << init_time << '\n';
@@ -394,13 +437,9 @@ int main(int argc, char *argv[]) {
   if (parallel_mode == 'W') {
 	for(int i=0;i<SA_iters;i++){
 		within_wires(wires,occupancy,num_threads,SA_prob);
-	}
+    }
   }else{
-	for(int i=0;i<SA_iters;i++){
-		within_wires(wires,occupancy,num_threads,SA_prob);
-	}
-    
-
+	within_wires(wires,occupancy,num_threads,SA_prob);
   }
 
   /** 
@@ -424,5 +463,6 @@ int main(int argc, char *argv[]) {
 validate_wire_t Wire::to_validate_format(void) const {
   /* TODO(student): Implement this if you want to use the wr_checker. */
   /* See wireroute.h for details on validate_wire_t. */
+
   throw std::logic_error("to_validate_format not implemented.");
 }
