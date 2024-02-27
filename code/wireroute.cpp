@@ -70,18 +70,14 @@ void write_output(const std::vector<Wire> &wires, const int num_wires, const std
 
         if (start_y == bend1_y) {
             // first bend was horizontal
-
             if (end_x != bend1_x) {
                 // two bends
-
                 out_wires << bend1_x << ' ' << end_y << ' ';
             }
         } else if (start_x == bend1_x) {
             // first bend was vertical
-
             if (end_y != bend1_y) {
                 // two bends
-
                 out_wires << end_x << ' ' << bend1_y << ' ';
             }
         }
@@ -221,11 +217,12 @@ cost_t set_bend(int index, std::vector<std::vector<int>> *occupancy, Wire &wire)
     int delta_x = std::abs(wire.start_x - wire.end_x);
     cost_t delta_cost = 0;
     if (index <= delta_x) {
-        wire.bend1_x = std::min(wire.start_x, wire.end_x) + index;
+        wire.bend1_x = wire.start_x + (wire.start_x < wire.end_x ? index : -index);
         wire.bend1_y = wire.start_y;
     } else {
+        index -= delta_x;
         wire.bend1_x = wire.start_x;
-        wire.bend1_y = std::min(wire.start_y, wire.end_y) + index - delta_x;
+        wire.bend1_y = wire.start_y + (wire.start_y < wire.end_y ? index : -index);
     }
     if constexpr (CalculateDeltaCost) {
         delta_cost = update_wire<true, false>(wire, *occupancy, 1);
