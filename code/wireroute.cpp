@@ -291,15 +291,15 @@ cost_t update_point(const int x, const int y, std::vector<std::vector<int>> &occ
 template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire_no_bend(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta) {
     cost_t delta_cost = 0;
-    if (wire.start_y == wire.end_y) {
-        // Horizontal wire
-        for (int x = std::min(wire.start_x, wire.end_x); x <= std::max(wire.start_x, wire.end_x); x++) {
-            delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(x, wire.start_y, occupancy, delta);
-        }
-    } else {
+    if (wire.start_x == wire.end_x) {
         // Vertical wire
         for (int y = std::min(wire.start_y, wire.end_y); y <= std::max(wire.start_y, wire.end_y); y++) {
             delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(wire.start_x, y, occupancy, delta);
+        }
+    } else {
+        // Horizontal wire
+        for (int x = std::min(wire.start_x, wire.end_x); x <= std::max(wire.start_x, wire.end_x); x++) {
+            delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(x, wire.start_y, occupancy, delta);
         }
     }
     return delta_cost;
@@ -310,7 +310,8 @@ cost_t update_wire_one_bend(const Wire &wire, std::vector<std::vector<int>> &occ
     cost_t delta_cost = 0;
     if (wire.start_x == wire.bend1_x) {
         // Vertical first bend
-        for (int y = std::min(wire.start_y, wire.bend1_y); y < std::max(wire.start_y, wire.bend1_y); y++) {
+        int direction = wire.start_y < wire.bend1_y ? 1 : -1;
+        for (int y = wire.start_y; y != wire.bend1_y; y += direction) {
             delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(wire.start_x, y, occupancy, delta);
         }
 
@@ -320,7 +321,8 @@ cost_t update_wire_one_bend(const Wire &wire, std::vector<std::vector<int>> &occ
         }
     } else {
         // Horizontal first bend
-        for (int x = std::min(wire.start_x, wire.bend1_x); x < std::max(wire.start_x, wire.bend1_x); x++) {
+        int direction = wire.start_x < wire.bend1_x ? 1 : -1;
+        for (int x = wire.start_x; x != wire.bend1_x; x += direction) {
             delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(x, wire.start_y, occupancy, delta);
         }
 
@@ -338,33 +340,37 @@ cost_t update_wire_two_bends(const Wire &wire, std::vector<std::vector<int>> &oc
     cost_t delta_cost = 0;
     if (wire.start_x == wire.bend1_x) {
         // Vertical first bend
-        for (int y = std::min(wire.start_y, wire.bend1_y); y < std::max(wire.start_y, wire.bend1_y); y++) {
+        int direction = wire.start_y < wire.bend1_y ? 1 : -1;
+        for (int y = wire.start_y; y != wire.bend1_y; y += direction) {
             delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(wire.start_x, y, occupancy, delta);
         }
 
         // Horizontal second bend
-        for (int x = std::min(wire.bend1_x, wire.end_x); x < std::max(wire.bend1_x, wire.end_x); x++) {
+        direction = wire.bend1_x < wire.end_x ? 1 : -1;
+        for (int x = wire.bend1_x; x != wire.end_x; x += direction) {
             delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(x, wire.bend1_y, occupancy, delta);
         }
 
         // Vertical third
         for (int y = std::min(wire.bend1_y, wire.end_y); y <= std::max(wire.bend1_y, wire.end_y); y++) {
-            delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(wire.bend1_x, y, occupancy, delta);
+            delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(wire.end_x, y, occupancy, delta);
         }
     } else {
         // Horizontal first bend
-        for (int x = std::min(wire.start_x, wire.bend1_x); x < std::max(wire.start_x, wire.bend1_x); x++) {
+        int direction = wire.start_x < wire.bend1_x ? 1 : -1;
+        for (int x = wire.start_x; x != wire.bend1_x; x += direction) {
             delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(x, wire.start_y, occupancy, delta);
         }
 
         // Vertical second bend
-        for (int y = std::min(wire.bend1_y, wire.end_y); y < std::max(wire.bend1_y, wire.end_y); y++) {
+        direction = wire.bend1_y < wire.end_y ? 1 : -1;
+        for (int y = wire.bend1_y; y != wire.end_y; y += direction) {
             delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(wire.bend1_x, y, occupancy, delta);
         }
 
         // Horizontal second
         for (int x = std::min(wire.bend1_x, wire.end_x); x <= std::max(wire.bend1_x, wire.end_x); x++) {
-            delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(x, wire.bend1_y, occupancy, delta);
+            delta_cost += update_point<CalculateDeltaCost, UpdateOccupancy>(x, wire.end_y, occupancy, delta);
         }
     }
 
