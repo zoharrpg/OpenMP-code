@@ -2,7 +2,6 @@
  * Parallel VLSI Wire Routing via OpenMP
  * Name 1(andrew_id 1), Name 2(andrew_id 2)
  */
-
 #include "wireroute.h"
 
 #include <algorithm>
@@ -199,6 +198,7 @@ int main(int argc, char *argv[]) {
             within_wires(wires, occupancy, SA_iters);
             break;
         case 'A':
+            across_wires(wires, occupancy, SA_iters, batch_size);
             break;
     }
 
@@ -207,7 +207,6 @@ int main(int argc, char *argv[]) {
     std::cout << "Computation time (sec): " << compute_time << '\n';
 
     /* Write wires and occupancy matrix to files */
-
     print_stats(occupancy);
     write_output(wires, num_wires, occupancy, dim_x, dim_y, num_threads, input_filename);
 }
@@ -415,8 +414,8 @@ cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> 
     return cost;
 }
 
-void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iters) {
-    for (int iter = 0; iter < iters; iter++) {
+void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iterations) {
+    for (int iter = 0; iter < iterations; iter++) {
         for (auto &wire: wires) {
             // If the wire is horizontal or vertical, skip
             if (num_bends(wire) == 0) {
@@ -446,4 +445,8 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
             update_wire<false, true>(wire, occupancy, 1);
         }
     }
+}
+
+void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iterations,
+                  const int batch_size) {
 }

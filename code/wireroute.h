@@ -74,6 +74,8 @@ float get_option_float(const char *option_name, float default_value);
 
 int num_bends(const Wire &wire);
 
+cost_t calculate_cost(const std::vector<std::vector<int>> &occupancy);
+
 template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire_no_bend(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
@@ -83,18 +85,20 @@ cost_t update_wire_one_bend(const Wire &wire, std::vector<std::vector<int>> &occ
 template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire_two_bends(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
-cost_t calculate_cost(const std::vector<std::vector<int>> &occupancy);
+
+template<bool CalculateDeltaCost>
+cost_t set_bend(int index, std::vector<std::vector<int>> *occupancy, Wire &wire);
+
+void random_bend(Wire &wire);
 
 template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
 cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy);
 
-void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iters);
+void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iterations);
 
-template<bool CalculateDeltaCost>
-cost_t set_bend(int index, std::vector<std::vector<int>> *occupancy, Wire &wire);
-
-void random_bend(Wire &wire);
+void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iterations,
+                  const int batch_size);
 
 #endif
