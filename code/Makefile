@@ -1,13 +1,8 @@
-UNAME_S := $(shell uname -s)
 APP_NAME=wireroute
 
 OBJS=wireroute.o validate.o
 
-ifeq ($(UNAME_S), Darwin)
-    CXX = g++-13
-else
-	CXX = g++
-endif
+CXX = g++
 CXXFLAGS = -Wall -O3 -std=c++17 -m64 -I. -fopenmp -Wno-unknown-pragmas
 
 all: $(APP_NAME)
