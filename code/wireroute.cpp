@@ -88,16 +88,6 @@ void write_output(const std::vector<Wire> &wires, const int num_wires, const std
     out_wires.close();
 }
 
-cost_t calculate_cost(const std::vector<std::vector<int>> &occupancy) {
-    cost_t total_cost = 0;
-    for (const auto &row: occupancy) {
-        for (const int count: row) {
-            total_cost += count * count;
-        }
-    }
-    return total_cost;
-}
-
 double fixed_probability(const double prob = -1) {
     static double fixed_prob = -1;
     if (prob > 0) {
@@ -208,7 +198,6 @@ int main(int argc, char *argv[]) {
             double >>(std::chrono::steady_clock::now() - init_start).count();
     fixed_probability(SA_prob);
     std::cout << "Initialization time (sec): " << std::fixed << std::setprecision(10) << init_time << '\n';
-    std::cout << "Initial cost: " << calculate_cost(occupancy) << '\n';
 
     const auto compute_start = std::chrono::steady_clock::now();
 
