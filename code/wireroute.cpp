@@ -16,6 +16,8 @@
 #include <omp.h>
 #include <random>
 
+std::vector<std::vector<omp_lock_t>> lockTable;
+
 void print_stats(const std::vector<std::vector<int>> &occupancy) {
     int max_occupancy = 0;
     long long total_cost = 0;
@@ -170,12 +172,25 @@ int main(int argc, char *argv[]) {
 
     std::vector<Wire> wires(num_wires);
     std::vector occupancy(dim_y, std::vector<int>(dim_x));
+    lockTable.resize(dim_y, std::vector<omp_lock_t>(dim_x));
+
+    for (int i = 0; i < dim_y; i++) {
+        for (int j = 0; j < dim_x; j++) {
+            omp_init_lock(&lockTable[i][j]);
+        }
+    }
 
     for (auto &wire: wires) {
         fin >> wire.start_x >> wire.start_y >> wire.end_x >> wire.end_y;
         wire.bend1_x = wire.start_x;
         wire.bend1_y = wire.end_y;
     }
+
+    std::sort(wires.begin(), wires.end(), [](const Wire& a, const Wire& b) {
+        int distance_a = std::abs(a.start_x - a.end_x) + std::abs(a.start_y - a.end_y);
+        int distance_b = std::abs(b.start_x - b.end_x) + std::abs(b.start_y - b.end_y);
+        return distance_a > distance_b; // Descending order
+    });
 
     /* Initialize any additional data structures needed in the algorithm */
     initialize(wires, occupancy);
@@ -205,6 +220,12 @@ int main(int argc, char *argv[]) {
     const double compute_time = std::chrono::duration_cast<std::chrono::duration<
             double >>(std::chrono::steady_clock::now() - compute_start).count();
     std::cout << "Computation time (sec): " << compute_time << '\n';
+
+    for (int i = 0; i < dim_y; i++) {
+        for (int j = 0; j < dim_x; j++) {
+            omp_destroy_lock(&lockTable[i][j]);
+        }
+    }
 
     /* Write wires and occupancy matrix to files */
     print_stats(occupancy);
@@ -283,7 +304,9 @@ cost_t update_point(const int x, const int y, std::vector<std::vector<int>> &occ
         delta_cost = (occupancy[y][x] + delta) * (occupancy[y][x] + delta) - occupancy[y][x] * occupancy[y][x];
     }
     if constexpr (UpdateOccupancy) {
+        omp_set_lock(&lockTable[y][x]);
         occupancy[y][x] += delta;
+        omp_unset_lock(&lockTable[y][x]);
     }
     return delta_cost;
 }
@@ -377,16 +400,6 @@ cost_t update_wire_two_bends(const Wire &wire, std::vector<std::vector<int>> &oc
     return delta_cost;
 }
 
-cost_t calculate_cost(const std::vector<std::vector<int>> &occupancy) {
-    int total_cost = 0;
-    for (const auto &row: occupancy) {
-        for (const int count: row) {
-            total_cost += count * count;
-        }
-    }
-    return total_cost;
-}
-
 template<bool CalculateDeltaCost, bool UpdateOccupancy>
 cost_t update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta) {
     cost_t delta_cost = 0;
@@ -460,6 +473,7 @@ void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
         for (int start = 0; start < num_wires; start += batch_size) {
             int end = std::min(start + batch_size, num_wires);
             // Remove all wires in the batch from the occupancy matrix
+#pragma omp parallel for default(none) shared(wires, occupancy, start, end)
             for (int i = start; i < end; i++) {
                 update_wire<false, true>(wires[i], occupancy, -1);
             }
@@ -486,6 +500,7 @@ void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                     random_bend(wires[wire_index]);
                 }
             }
+#pragma omp parallel for default(none) shared(wires, occupancy, start, end)
             for (int i = start; i < end; i++) {
                 update_wire<false, true>(wires[i], occupancy, 1);
             }
