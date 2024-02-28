@@ -232,12 +232,6 @@ int main(int argc, char *argv[]) {
             double >>(std::chrono::steady_clock::now() - compute_start).count();
     std::cout << "Computation time (sec): " << compute_time << '\n';
 
-    for (int i = 0; i < dim_y; i++) {
-        for (int j = 0; j < dim_x; j++) {
-            omp_destroy_lock(&lockTable[i][j]);
-        }
-    }
-
     /* Write wires and occupancy matrix to files */
     print_stats(occupancy);
     write_output(wires, num_wires, occupancy, dim_x, dim_y, num_threads, input_filename);
@@ -509,10 +503,7 @@ void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                 if (random_happen()) {
                     random_bend(wires[wire_index]);
                 }
-            }
-#pragma omp parallel for default(none) shared(wires, occupancy, start, end)
-            for (int i = start; i < end; i++) {
-                update_wire<false, true>(wires[i], occupancy, 1);
+                update_wire<false, true>(wires[wire_index], occupancy, 1);
             }
         }
     }
