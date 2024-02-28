@@ -455,4 +455,40 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
 
 void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iterations,
                   const int batch_size) {
+    auto num_wires = static_cast<int>(std::size(wires));
+    for (int iter = 0; iter < iterations; iter++) {
+        for (int start = 0; start < num_wires; start += batch_size) {
+            int end = std::min(start + batch_size, num_wires);
+            // Remove all wires in the batch from the occupancy matrix
+            for (int i = start; i < end; i++) {
+                update_wire<false, true>(wires[i], occupancy, -1);
+            }
+#pragma omp parallel for default(none) shared(wires, occupancy, start, end)
+            for (int wire_index = start; wire_index < end; wire_index++) {
+                cost_t delta_cost = std::numeric_limits<cost_t>::max();
+                Wire private_wire = wires[wire_index];
+                // If the wire is horizontal or vertical, skip
+                if (num_bends(private_wire) == 0) {
+                    continue;
+                }
+
+                int delta_x = std::abs(private_wire.start_x - private_wire.end_x);
+                int delta_y = std::abs(private_wire.start_y - private_wire.end_y);
+                for (int i = 1; i <= delta_x + delta_y; i++) {
+                    cost_t _delta_cost = set_bend<true>(i, &occupancy, private_wire);
+                    if (_delta_cost < delta_cost) {
+                        delta_cost = _delta_cost;
+                        wires[wire_index].bend1_x = private_wire.bend1_x;
+                        wires[wire_index].bend1_y = private_wire.bend1_y;
+                    }
+                }
+                if (random_happen()) {
+                    random_bend(wires[wire_index]);
+                }
+            }
+            for (int i = start; i < end; i++) {
+                update_wire<false, true>(wires[i], occupancy, 1);
+            }
+        }
+    }
 }
