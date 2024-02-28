@@ -424,8 +424,9 @@ cost_t update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, c
 cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy) {
     /* Initialize occupancy matrix */
 #pragma omp parallel for default(none) shared(occupancy, wires)
-    for (const auto &wire: wires) {
-        update_wire<false, true, false>(wire, occupancy, 1);
+//    for (const auto &wire: wires) {
+    for (int i = 0; i < std::size(wires); i++) {
+        update_wire<false, true, true>(wires[i], occupancy, 1);
     }
     return 0;
 }
@@ -477,6 +478,11 @@ void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
             }
 #pragma omp parallel for schedule(dynamic) default(none) shared(wires, occupancy, start, end)
             for (int wire_index = start; wire_index < end; wire_index++) {
+                if (random_happen()) {
+                    random_bend(wires[wire_index]);
+                    update_wire<false, true, true>(wires[wire_index], occupancy, 1);
+                    continue;
+                }
                 cost_t delta_cost = std::numeric_limits<cost_t>::max();
                 Wire private_wire = wires[wire_index];
                 // If the wire is horizontal or vertical, skip
@@ -493,9 +499,6 @@ void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                         wires[wire_index].bend1_x = private_wire.bend1_x;
                         wires[wire_index].bend1_y = private_wire.bend1_y;
                     }
-                }
-                if (random_happen()) {
-                    random_bend(wires[wire_index]);
                 }
                 update_wire<false, true, true>(wires[wire_index], occupancy, 1);
             }
