@@ -76,22 +76,22 @@ int num_bends(const Wire &wire);
 
 cost_t calculate_cost(const std::vector<std::vector<int>> &occupancy);
 
-template<bool CalculateDeltaCost, bool UpdateOccupancy>
+template<bool CalculateDeltaCost, bool UpdateOccupancy, bool UseLock>
 cost_t update_wire_no_bend(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
-template<bool CalculateDeltaCost, bool UpdateOccupancy>
+template<bool CalculateDeltaCost, bool UpdateOccupancy, bool UseLock>
 cost_t update_wire_one_bend(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
-template<bool CalculateDeltaCost, bool UpdateOccupancy>
+template<bool CalculateDeltaCost, bool UpdateOccupancy, bool UseLock>
 cost_t update_wire_two_bends(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
 
-template<bool CalculateDeltaCost>
+template<bool CalculateDeltaCost, bool UseLock>
 cost_t set_bend(int index, std::vector<std::vector<int>> *occupancy, Wire &wire);
 
 void random_bend(Wire &wire);
 
-template<bool CalculateDeltaCost, bool UpdateOccupancy>
+template<bool CalculateDeltaCost, bool UpdateOccupancy, bool UseLock>
 cost_t update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, const int delta);
 
 cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy);
