@@ -88,6 +88,16 @@ void write_output(const std::vector<Wire> &wires, const int num_wires, const std
     out_wires.close();
 }
 
+cost_t calculate_cost(const std::vector<std::vector<int>> &occupancy) {
+    cost_t total_cost = 0;
+    for (const auto &row: occupancy) {
+        for (const int count: row) {
+            total_cost += count * count;
+        }
+    }
+    return total_cost;
+}
+
 double fixed_probability(const double prob = -1) {
     static double fixed_prob = -1;
     if (prob > 0) {
@@ -198,6 +208,7 @@ int main(int argc, char *argv[]) {
             double >>(std::chrono::steady_clock::now() - init_start).count();
     fixed_probability(SA_prob);
     std::cout << "Initialization time (sec): " << std::fixed << std::setprecision(10) << init_time << '\n';
+    std::cout << "Initial cost: " << calculate_cost(occupancy) << '\n';
 
     const auto compute_start = std::chrono::steady_clock::now();
 
@@ -425,12 +436,11 @@ cost_t update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, c
 
 cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy) {
     /* Initialize occupancy matrix */
-    cost_t cost = 0;
+#pragma omp parallel for default(none) shared(occupancy, wires)
     for (const auto &wire: wires) {
-        cost += update_wire<true, true>(wire, occupancy, 1);
+        update_wire<false, true>(wire, occupancy, 1);
     }
-    std::cout << "Initial cost: " << cost << '\n';
-    return cost;
+    return 0;
 }
 
 void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy, const int iterations) {
@@ -477,7 +487,7 @@ void across_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
             for (int i = start; i < end; i++) {
                 update_wire<false, true>(wires[i], occupancy, -1);
             }
-#pragma omp parallel for default(none) shared(wires, occupancy, start, end)
+#pragma omp parallel for schedule(dynamic) default(none) shared(wires, occupancy, start, end)
             for (int wire_index = start; wire_index < end; wire_index++) {
                 cost_t delta_cost = std::numeric_limits<cost_t>::max();
                 Wire private_wire = wires[wire_index];
