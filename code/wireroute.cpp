@@ -424,8 +424,7 @@ cost_t update_wire(const Wire &wire, std::vector<std::vector<int>> &occupancy, c
 cost_t initialize(const std::vector<Wire> &wires, std::vector<std::vector<int>> &occupancy) {
     /* Initialize occupancy matrix */
 #pragma omp parallel for default(none) shared(occupancy, wires)
-//    for (const auto &wire: wires) {
-    for (int i = 0; i < std::size(wires); i++) {
+    for (unsigned int i = 0; i < std::size(wires); i++) {
         update_wire<false, true, true>(wires[i], occupancy, 1);
     }
     return 0;
