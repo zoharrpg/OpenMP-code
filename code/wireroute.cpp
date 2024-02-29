@@ -447,10 +447,13 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                 update_wire<false, true, false>(wire, occupancy, 1);
                 continue;
             }
-#pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y, occupancy) firstprivate(private_wire)
+            cost_t private_delta_cost = delta_cost;
+#pragma omp parallel for default(none) shared(wire, delta_cost, delta_x, delta_y, occupancy) firstprivate(private_wire, private_delta_cost)
             for (int i = 1; i <= delta_x + delta_y; i++) {
                 cost_t _delta_cost = set_bend<true, false>(i, &occupancy, private_wire);
-
+                if (_delta_cost >= private_delta_cost) {
+                    continue;
+                }
 #pragma critical
                 if (_delta_cost < delta_cost) {
                     {
@@ -459,6 +462,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                         wire.bend1_y = private_wire.bend1_y;
                     }
                 }
+                private_delta_cost = delta_cost;
             }
         }
     }
