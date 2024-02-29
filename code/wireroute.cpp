@@ -464,6 +464,7 @@ void within_wires(std::vector<Wire> &wires, std::vector<std::vector<int>> &occup
                 }
                 private_delta_cost = delta_cost;
             }
+            update_wire<false, true, false>(wire, occupancy, 1);
         }
     }
 }
